@@ -59,6 +59,13 @@ npx -y -p @jackwener/opencli opencli plugin install /absolute/path/to/opencli-zs
 npx -y -p @jackwener/opencli opencli plugin install github:klboke/opencli-zsxq
 ```
 
+## Bundled AI Skill
+
+This repository also contains a versioned Codex skill at [skills/zsxq-ops/SKILL.md](./skills/zsxq-ops/SKILL.md).
+
+It is meant to help AI agents run community maintenance workflows consistently on top of the plugin.
+If you want Codex to auto-discover it locally, copy or symlink `skills/zsxq-ops` into `~/.codex/skills/zsxq-ops`.
+
 ## Usage
 
 Examples below use `opencli ...` directly. If you do not have it installed globally, replace `opencli` with:

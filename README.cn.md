@@ -66,6 +66,15 @@ opencli plugin install github:klboke/opencli-zsxq
 npx -y -p @jackwener/opencli opencli plugin install github:klboke/opencli-zsxq
 ```
 
+## 仓库内置 AI Skill
+
+仓库里也带了一份可版本化维护的 Codex skill：
+[skills/zsxq-ops/SKILL.md](./skills/zsxq-ops/SKILL.md)
+
+这份 skill 用来让 AI 在调用插件时按统一流程做社区维护。
+如果你希望 Codex 在本机自动发现它，可以把 `skills/zsxq-ops` 复制或软链到：
+`~/.codex/skills/zsxq-ops`
+
 ## 用法
 
 下面默认直接写 `opencli ...`。如果你没有全局安装，请统一替换成：

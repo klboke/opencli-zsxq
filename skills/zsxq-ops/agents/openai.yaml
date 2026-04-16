@@ -1,0 +1,5 @@
+interface:
+  display_name: "ZSXQ Ops"
+  short_description: "Triage and operate ZSXQ workflows."
+  default_prompt: "Use $zsxq-ops to triage Knowledge Planet topics, inspect full threads, and execute approved community actions safely."
+
