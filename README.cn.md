@@ -101,6 +101,8 @@ opencli zsxq needs-reply --count 20
 opencli zsxq needs-reply --group 48844125114258 --count 50
 ```
 
+返回列里会包含发帖时间 `create_time`，方便你按发布时间判断是否需要优先跟进。
+
 当前筛选规则是固定且显式的，命令会把符合下面任一条件的话题标出来：
 
 1. 话题作者不是当前登录账号

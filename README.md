@@ -93,6 +93,8 @@ opencli zsxq needs-reply --count 20
 opencli zsxq needs-reply --group 48844125114258 --count 50
 ```
 
+The output now includes topic publish time in `create_time` so you can triage candidates by age.
+
 List latest topics from the current managed group, or an explicit group id:
 
 ```bash

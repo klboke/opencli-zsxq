@@ -25,7 +25,7 @@ cli({
     { name: 'count', type: 'int', default: 20, help: 'Number of recent topics to inspect' },
     { name: 'include-self-topics', type: 'boolean', help: 'Include topics created by the current logged-in account' },
   ],
-  columns: ['topic_id', 'group_id', 'owner_name', 'title', 'comments_count', 'last_comment_owner', 'reason', 'topic_url'],
+  columns: ['topic_id', 'group_id', 'owner_name', 'title', 'create_time', 'comments_count', 'last_comment_owner', 'reason', 'topic_url'],
   func: async (page, kwargs) => {
     requireBrowserSession(page, 'needs-reply');
 
@@ -63,6 +63,7 @@ cli({
         group_id: String(topicForDecision?.group?.group_id ?? groupId),
         owner_name: getTopicOwner(topicForDecision)?.name ?? '',
         title: topicForDecision?.title ?? '',
+        create_time: topicForDecision?.create_time ?? '',
         comments_count: topicForDecision?.comments_count ?? 0,
         last_comment_owner: decision.latestComment?.owner?.name ?? '',
         reason: decision.reason,
