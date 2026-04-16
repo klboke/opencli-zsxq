@@ -164,9 +164,11 @@ opencli zsxq comment-delete 2852411842424181 --reason custom --description "å¹¿å
 `needs-reply` intentionally uses simple and explicit heuristics. A topic is currently flagged when:
 
 1. The topic is not authored by the current logged-in account, unless `--include-self-topics` is passed.
-2. Either `comments_count = 0`.
-3. Or comments exist, but the latest preview comment in `show_comments` is not from the current logged-in account.
-4. Or comments exist but the preview comment is missing, in which case it is conservatively flagged.
+2. Topics authored by community staff are skipped.
+3. Either `comments_count = 0`.
+4. Or comments exist, but the latest preview comment in `show_comments` is not from the current logged-in account.
+5. Or comments exist but the preview comment is missing, in which case it is conservatively flagged.
+6. If `show_comments.length < comments_count`, the plugin fetches paginated comments and re-evaluates using the true latest comment.
 
 The plugin also reads `groups/{group_id}` and treats the following identities as community staff:
 

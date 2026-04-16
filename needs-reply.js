@@ -1,6 +1,7 @@
 import { cli, Strategy } from './opencli-compat.js';
 
 import {
+  readAllTopicComments,
   buildTopicUrl,
   ensureZsxqSession,
   getTopicId,
@@ -48,8 +49,24 @@ cli({
     const rows = [];
     for (const topic of topics) {
       let topicForDecision = topic;
+      let latestCommentOverride = null;
+      const previewComments = Array.isArray(topicForDecision?.show_comments) ? topicForDecision.show_comments : [];
+      const commentsCount = Number(topicForDecision?.comments_count ?? 0);
+
+      // Some list/detail responses expose only a truncated preview list.
+      // When preview count is lower than comments_count, re-read comments to get the true latest reply.
+      if (commentsCount > 0 && previewComments.length > 0 && previewComments.length < commentsCount) {
+        const allComments = await readAllTopicComments(page, getTopicId(topicForDecision), {
+          count: 30,
+          maxPages: Math.max(1, Math.ceil(commentsCount / 30)),
+          includeSticky: false,
+        });
+        latestCommentOverride = allComments.comments[allComments.comments.length - 1] ?? null;
+      }
+
       let decision = topicNeedsReply(topicForDecision, self?.user_id, {
         includeSelfTopics: !!kwargs['include-self-topics'],
+        latestCommentOverride,
         staffUserIds,
       });
 
@@ -60,6 +77,7 @@ cli({
         topicForDecision = details.topic ?? topicForDecision;
         decision = topicNeedsReply(topicForDecision, self?.user_id, {
           includeSelfTopics: !!kwargs['include-self-topics'],
+          latestCommentOverride,
           staffUserIds,
         });
       }

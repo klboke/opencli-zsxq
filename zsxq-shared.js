@@ -551,6 +551,10 @@ export function topicNeedsReply(topic, selfUserId, options = {}) {
     return { needsReply: false, reason: 'self_topic' };
   }
 
+  if (ownerUserId && staffUserIds.has(ownerUserId)) {
+    return { needsReply: false, reason: 'staff_topic' };
+  }
+
   if (commentsCount === 0) {
     return {
       needsReply: true,
@@ -559,9 +563,10 @@ export function topicNeedsReply(topic, selfUserId, options = {}) {
     };
   }
 
-  const latestComment = Array.isArray(topic?.show_comments) && topic.show_comments.length > 0
-    ? topic.show_comments[topic.show_comments.length - 1]
-    : null;
+  const latestComment = options.latestCommentOverride
+    ?? (Array.isArray(topic?.show_comments) && topic.show_comments.length > 0
+      ? topic.show_comments[topic.show_comments.length - 1]
+      : null);
 
   if (!latestComment) {
     return {
