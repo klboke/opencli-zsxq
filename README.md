@@ -121,6 +121,9 @@ opencli zsxq comment-dump https://t.zsxq.com/7N1rp
 opencli zsxq comment-dump https://t.zsxq.com/7N1rp --count 50 --max-pages 40
 ```
 
+Note: the current Knowledge Planet comments API only accepts page sizes up to `30`.
+If you pass a larger `--count`, the plugin automatically clamps it to `30`.
+
 Reply to a topic:
 
 ```bash

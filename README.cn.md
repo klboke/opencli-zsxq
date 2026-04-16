@@ -179,6 +179,7 @@ opencli zsxq comment-dump https://t.zsxq.com/7N1rp --count 50 --max-pages 40
 ```
 
 `comment-dump` 会循环走评论分页接口，尽量把一个话题下的评论内容拉全，适合后续归档、分析或离线处理。
+注意：当前知识星球评论接口单页 `count` 上限是 `30`。如果你传了更大的值，插件会自动钳制到 `30`。
 
 ### 8. 回复帖子
 

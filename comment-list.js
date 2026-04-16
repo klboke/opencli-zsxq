@@ -1,6 +1,7 @@
 import { cli, Strategy } from './opencli-compat.js';
 
 import {
+  normalizeCommentPageSize,
   normalizeCommentRow,
   readTopicComments,
   readTopicDetails,
@@ -30,7 +31,7 @@ cli({
     const details = await readTopicDetails(page, target.topicId);
     const groupId = target.groupId || String(details.group?.group_id ?? details.topic?.group?.group_id ?? '');
     const result = await readTopicComments(page, target.topicId, {
-      count: kwargs.count,
+      count: normalizeCommentPageSize(kwargs.count),
       beginTime: kwargs['begin-time'],
     });
 

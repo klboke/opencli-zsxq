@@ -8,9 +8,18 @@ export const ZSXQ_API_ORIGIN = 'https://api.zsxq.com';
 export const ZSXQ_API_BASE = `${ZSXQ_API_ORIGIN}/v2`;
 export const ZSXQ_API_VERSION = '2.90.0';
 export const ZSXQ_DEFAULT_GROUP_ID = '48844125114258';
+export const ZSXQ_MAX_COMMENT_PAGE_SIZE = 30;
 
 function normalizeMultilineText(value) {
   return String(value).replace(/\r\n/g, '\n');
+}
+
+export function normalizeCommentPageSize(value) {
+  const parsed = Number(value ?? ZSXQ_MAX_COMMENT_PAGE_SIZE);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return ZSXQ_MAX_COMMENT_PAGE_SIZE;
+  }
+  return Math.min(Math.floor(parsed), ZSXQ_MAX_COMMENT_PAGE_SIZE);
 }
 
 export function normalizeTextPayload(kwargs, textKey = 'text', fileKey = 'file') {
@@ -296,8 +305,9 @@ export async function readGroupTopics(page, groupId, options = {}) {
 
 export async function readTopicComments(page, topicId, options = {}) {
   const url = new URL(`${ZSXQ_API_BASE}/topics/${topicId}/comments`);
+  const count = normalizeCommentPageSize(options.count);
   url.searchParams.set('sort', 'asc');
-  url.searchParams.set('count', String(options.count ?? 30));
+  url.searchParams.set('count', String(count));
   url.searchParams.set('with_sticky', 'true');
   if (options.beginTime) {
     url.searchParams.set('begin_time', String(options.beginTime));
@@ -325,7 +335,7 @@ export async function readTopicComments(page, topicId, options = {}) {
 }
 
 export async function readAllTopicComments(page, topicId, options = {}) {
-  const pageSize = Number(options.count ?? 30);
+  const pageSize = normalizeCommentPageSize(options.count);
   const maxPages = Number(options.maxPages ?? 20);
   const includeSticky = options.includeSticky !== false;
 

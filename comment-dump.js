@@ -1,6 +1,7 @@
 import { cli, Strategy } from './opencli-compat.js';
 
 import {
+  normalizeCommentPageSize,
   normalizeCommentRow,
   readAllTopicComments,
   readTopicDetails,
@@ -31,7 +32,7 @@ cli({
     const details = await readTopicDetails(page, target.topicId);
     const groupId = target.groupId || String(details.group?.group_id ?? details.topic?.group?.group_id ?? '');
     const result = await readAllTopicComments(page, target.topicId, {
-      count: kwargs.count,
+      count: normalizeCommentPageSize(kwargs.count),
       maxPages: kwargs['max-pages'],
       beginTime: kwargs['begin-time'],
       includeSticky: kwargs['include-sticky'] !== false,
