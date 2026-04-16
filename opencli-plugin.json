@@ -1,0 +1,6 @@
+{
+  "name": "zsxq",
+  "version": "0.1.0",
+  "opencli": ">=1.7.4",
+  "description": "Knowledge Planet (zsxq.com) adapters for reading topics and replying with your logged-in browser session"
+}
