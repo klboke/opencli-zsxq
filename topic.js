@@ -2,6 +2,8 @@ import { cli, Strategy } from './opencli-compat.js';
 
 import {
   buildTopicUrl,
+  getTopicOwner,
+  getTopicText,
   readTopicDetails,
   requireBrowserSession,
   resolveTopicReference,
@@ -34,9 +36,9 @@ cli({
       topic_id: topic.topic_id ?? target.topicId,
       group_id: resolvedGroupId,
       group_name: group.name ?? topic.group?.name ?? '',
-      owner_name: owner.name ?? '',
+      owner_name: getTopicOwner(topic)?.name ?? owner.name ?? '',
       title: topic.title ?? '',
-      text: talk.text ?? '',
+      text: getTopicText(topic),
       comments_count: topic.comments_count ?? 0,
       create_time: topic.create_time ?? '',
       topic_url: buildTopicUrl(topic.topic_id ?? target.topicId, resolvedGroupId),

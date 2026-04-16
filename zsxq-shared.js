@@ -484,8 +484,7 @@ export async function deleteCommentById(page, commentId, options = {}) {
 }
 
 export function normalizeTopicRow(topic) {
-  const talk = topic?.talk ?? {};
-  const owner = talk.owner ?? {};
+  const owner = getTopicOwner(topic) ?? {};
   const group = topic?.group ?? {};
   const topicId = topic?.topic_uid || topic?.topic_id || '';
   const groupId = group?.group_id ? String(group.group_id) : '';
@@ -496,7 +495,7 @@ export function normalizeTopicRow(topic) {
     group_name: group?.name ?? '',
     owner_name: owner?.name ?? '',
     title: topic?.title ?? '',
-    text: talk?.text ?? '',
+    text: getTopicText(topic),
     comments_count: topic?.comments_count ?? 0,
     sticky: !!topic?.sticky,
     digested: !!topic?.digested,
@@ -522,8 +521,7 @@ export function normalizeCommentRow(comment, topicId = '', groupId = '') {
 export function topicNeedsReply(topic, selfUserId, options = {}) {
   const currentUserId = String(selfUserId ?? '');
   const skipSelfTopics = options.includeSelfTopics ? false : true;
-  const talk = topic?.talk ?? {};
-  const owner = talk?.owner ?? {};
+  const owner = getTopicOwner(topic) ?? {};
   const ownerUserId = String(owner?.user_id ?? '');
   const commentsCount = Number(topic?.comments_count ?? 0);
 
@@ -565,6 +563,59 @@ export function topicNeedsReply(topic, selfUserId, options = {}) {
     reason: 'latest_comment_is_mine',
     latestComment,
   };
+}
+
+export function getTopicOwner(topic) {
+  if (!topic || typeof topic !== 'object') {
+    return null;
+  }
+
+  const typedCandidates = [
+    topic?.talk?.owner,
+    topic?.question?.owner,
+    topic?.solution?.owner,
+    topic?.task?.owner,
+    topic?.checkin?.owner,
+    topic?.answer?.owner,
+    topic?.article?.owner,
+  ];
+  for (const candidate of typedCandidates) {
+    if (candidate?.user_id || candidate?.name) {
+      return candidate;
+    }
+  }
+
+  for (const value of Object.values(topic)) {
+    if (value && typeof value === 'object' && value.owner && (value.owner.user_id || value.owner.name)) {
+      return value.owner;
+    }
+  }
+
+  return null;
+}
+
+export function getTopicText(topic) {
+  if (!topic || typeof topic !== 'object') {
+    return '';
+  }
+
+  const typedCandidates = [
+    topic?.talk?.text,
+    topic?.question?.text,
+    topic?.solution?.text,
+    topic?.task?.text,
+    topic?.checkin?.text,
+    topic?.answer?.text,
+    topic?.article?.text,
+  ];
+
+  for (const candidate of typedCandidates) {
+    if (typeof candidate === 'string' && candidate) {
+      return candidate;
+    }
+  }
+
+  return '';
 }
 
 export async function zsxqApiRequest(page, options) {

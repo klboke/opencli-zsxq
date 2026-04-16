@@ -3,6 +3,7 @@ import { cli, Strategy } from './opencli-compat.js';
 import {
   buildTopicUrl,
   ensureZsxqSession,
+  getTopicOwner,
   readGroupTopics,
   requireBrowserSession,
   resolveGroupReference,
@@ -45,7 +46,7 @@ cli({
       rows.push({
         topic_id: topic?.topic_uid || topic?.topic_id || '',
         group_id: String(topic?.group?.group_id ?? groupId),
-        owner_name: topic?.talk?.owner?.name ?? '',
+        owner_name: getTopicOwner(topic)?.name ?? '',
         title: topic?.title ?? '',
         comments_count: topic?.comments_count ?? 0,
         last_comment_owner: decision.latestComment?.owner?.name ?? '',
