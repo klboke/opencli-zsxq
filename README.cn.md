@@ -253,6 +253,8 @@ opencli zsxq comment-dump https://t.zsxq.com/7N1rp --count 50 --max-pages 40
 opencli zsxq reply https://t.zsxq.com/7N1rp --text "收到，我看一下。" --execute
 ```
 
+如果自动化链路传进来的 `--text` 里是字面量 `\n` / `\r\n`，插件现在会在没有真实换行时把它们转成真正的多行文本。
+
 从文件读取回复内容：
 
 ```bash

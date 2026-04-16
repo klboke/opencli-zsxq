@@ -169,6 +169,8 @@ opencli zsxq reply 14422522551548812 --text "收到，我看一下。" --execute
 opencli zsxq reply https://t.zsxq.com/7N1rp --file ./reply.md --execute
 ```
 
+For automation calls, `--text` now treats literal `\n` / `\r\n` escape sequences as real line breaks when no real newline is present yet.
+
 Create a topic:
 
 ```bash

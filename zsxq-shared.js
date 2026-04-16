@@ -15,6 +15,22 @@ function normalizeMultilineText(value) {
   return String(value).replace(/\r\n/g, '\n');
 }
 
+function normalizeInlineText(value) {
+  const normalized = normalizeMultilineText(value);
+
+  // Automation layers often pass escaped newlines such as "\\n\\n"
+  // through --text. When there are no real line breaks yet, treat these
+  // escape sequences as intended newlines instead of sending them literally.
+  if (!normalized.includes('\n') && /\\r\\n|\\n|\\r/.test(normalized)) {
+    return normalized
+      .replace(/\\r\\n/g, '\n')
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '\n');
+  }
+
+  return normalized;
+}
+
 export function normalizeCommentPageSize(value) {
   const parsed = Number(value ?? ZSXQ_MAX_COMMENT_PAGE_SIZE);
   if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -24,7 +40,7 @@ export function normalizeCommentPageSize(value) {
 }
 
 export function normalizeTextPayload(kwargs, textKey = 'text', fileKey = 'file') {
-  const text = kwargs[textKey] != null ? normalizeMultilineText(kwargs[textKey]) : '';
+  const text = kwargs[textKey] != null ? normalizeInlineText(kwargs[textKey]) : '';
   const file = kwargs[fileKey] != null ? String(kwargs[fileKey]) : '';
 
   if (text && file) {
