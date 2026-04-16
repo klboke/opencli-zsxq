@@ -3,7 +3,9 @@ import { cli, Strategy } from './opencli-compat.js';
 import {
   buildTopicUrl,
   ensureZsxqSession,
+  getTopicId,
   getTopicOwner,
+  readTopicDetails,
   readGroupTopics,
   requireBrowserSession,
   resolveGroupReference,
@@ -36,22 +38,38 @@ cli({
 
     const rows = [];
     for (const topic of topics) {
-      const decision = topicNeedsReply(topic, self?.user_id, {
+      let topicForDecision = topic;
+      let decision = topicNeedsReply(topicForDecision, self?.user_id, {
         includeSelfTopics: !!kwargs['include-self-topics'],
       });
+
+      // Some list responses omit preview comments even when comments_count > 0.
+      // Re-read the topic details once to recover show_comments before deciding.
+      if (decision.reason === 'comments_exist_but_preview_missing' && Number(topic?.comments_count ?? 0) > 0) {
+        const details = await readTopicDetails(page, getTopicId(topic));
+        topicForDecision = details.topic ?? topicForDecision;
+        decision = topicNeedsReply(topicForDecision, self?.user_id, {
+          includeSelfTopics: !!kwargs['include-self-topics'],
+        });
+      }
+
       if (!decision.needsReply) {
         continue;
       }
 
+      const topicId = getTopicId(topicForDecision);
       rows.push({
-        topic_id: topic?.topic_uid || topic?.topic_id || '',
-        group_id: String(topic?.group?.group_id ?? groupId),
-        owner_name: getTopicOwner(topic)?.name ?? '',
-        title: topic?.title ?? '',
-        comments_count: topic?.comments_count ?? 0,
+        topic_id: topicId,
+        group_id: String(topicForDecision?.group?.group_id ?? groupId),
+        owner_name: getTopicOwner(topicForDecision)?.name ?? '',
+        title: topicForDecision?.title ?? '',
+        comments_count: topicForDecision?.comments_count ?? 0,
         last_comment_owner: decision.latestComment?.owner?.name ?? '',
         reason: decision.reason,
-        topic_url: buildTopicUrl(topic?.topic_uid || topic?.topic_id || '', String(topic?.group?.group_id ?? groupId)),
+        topic_url: buildTopicUrl(
+          topicId,
+          String(topicForDecision?.group?.group_id ?? groupId),
+        ),
       });
     }
 

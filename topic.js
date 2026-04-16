@@ -2,6 +2,7 @@ import { cli, Strategy } from './opencli-compat.js';
 
 import {
   buildTopicUrl,
+  getTopicId,
   getTopicOwner,
   getTopicText,
   readTopicDetails,
@@ -28,20 +29,19 @@ cli({
     const details = await readTopicDetails(page, target.topicId);
     const topic = details.topic ?? {};
     const group = details.group ?? {};
-    const talk = topic.talk ?? {};
-    const owner = talk.owner ?? {};
+    const topicId = getTopicId(topic, target.topicId);
     const resolvedGroupId = target.groupId || group.group_id || topic.group?.group_id || '';
 
     return [{
-      topic_id: topic.topic_id ?? target.topicId,
+      topic_id: topicId,
       group_id: resolvedGroupId,
       group_name: group.name ?? topic.group?.name ?? '',
-      owner_name: getTopicOwner(topic)?.name ?? owner.name ?? '',
+      owner_name: getTopicOwner(topic)?.name ?? '',
       title: topic.title ?? '',
       text: getTopicText(topic),
       comments_count: topic.comments_count ?? 0,
       create_time: topic.create_time ?? '',
-      topic_url: buildTopicUrl(topic.topic_id ?? target.topicId, resolvedGroupId),
+      topic_url: buildTopicUrl(topicId, resolvedGroupId),
     }];
   },
 });

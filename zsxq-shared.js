@@ -486,7 +486,7 @@ export async function deleteCommentById(page, commentId, options = {}) {
 export function normalizeTopicRow(topic) {
   const owner = getTopicOwner(topic) ?? {};
   const group = topic?.group ?? {};
-  const topicId = topic?.topic_uid || topic?.topic_id || '';
+  const topicId = getTopicId(topic);
   const groupId = group?.group_id ? String(group.group_id) : '';
 
   return {
@@ -570,15 +570,7 @@ export function getTopicOwner(topic) {
     return null;
   }
 
-  const typedCandidates = [
-    topic?.talk?.owner,
-    topic?.question?.owner,
-    topic?.solution?.owner,
-    topic?.task?.owner,
-    topic?.checkin?.owner,
-    topic?.answer?.owner,
-    topic?.article?.owner,
-  ];
+  const typedCandidates = getPrimaryTopicEntities(topic).map((item) => item?.owner);
   for (const candidate of typedCandidates) {
     if (candidate?.user_id || candidate?.name) {
       return candidate;
@@ -599,15 +591,7 @@ export function getTopicText(topic) {
     return '';
   }
 
-  const typedCandidates = [
-    topic?.talk?.text,
-    topic?.question?.text,
-    topic?.solution?.text,
-    topic?.task?.text,
-    topic?.checkin?.text,
-    topic?.answer?.text,
-    topic?.article?.text,
-  ];
+  const typedCandidates = getPrimaryTopicEntities(topic).map((item) => item?.text);
 
   for (const candidate of typedCandidates) {
     if (typeof candidate === 'string' && candidate) {
@@ -616,6 +600,54 @@ export function getTopicText(topic) {
   }
 
   return '';
+}
+
+export function getTopicId(topic, fallback = '') {
+  const topicUid = topic?.topic_uid;
+  if (topicUid !== undefined && topicUid !== null && String(topicUid)) {
+    return String(topicUid);
+  }
+
+  const topicId = topic?.topic_id;
+  if (typeof topicId === 'string' && topicId) {
+    return topicId;
+  }
+
+  if (fallback !== undefined && fallback !== null && String(fallback)) {
+    return String(fallback);
+  }
+
+  if (topicId !== undefined && topicId !== null && String(topicId)) {
+    return String(topicId);
+  }
+
+  return '';
+}
+
+function getPrimaryTopicEntities(topic) {
+  const orderedKeys = getTopicEntityKeys(topic);
+  return orderedKeys
+    .map((key) => topic?.[key])
+    .filter((value) => value && typeof value === 'object');
+}
+
+function getTopicEntityKeys(topic) {
+  const rawType = String(topic?.type ?? '').trim().toLowerCase();
+  const aliases = {
+    talk: ['talk'],
+    answer: ['answer'],
+    article: ['article'],
+    solution: ['solution'],
+    task: ['task'],
+    checkin: ['checkin'],
+    question: ['question'],
+    'q&a': ['answer', 'question'],
+    qa: ['answer', 'question'],
+  };
+
+  const preferred = aliases[rawType] ?? [];
+  const defaults = ['talk', 'answer', 'article', 'solution', 'task', 'checkin', 'question'];
+  return [...new Set([...preferred, ...defaults])];
 }
 
 export async function zsxqApiRequest(page, options) {
