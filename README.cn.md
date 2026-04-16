@@ -1,6 +1,6 @@
 # opencli-zsxq
 
-`opencli-zsxq` 是一个用于知识星球（`zsxq.com`）的开源 OpenCLI 插件。
+`opencli-zsxq` 是一个用于知识星球（`zsxq.com`）的开源 OpenCLI 插件，覆盖帖子与评论操作、图片与附件提取，以及社区维护流程。
 
 协议：[MIT](./LICENSE)
 

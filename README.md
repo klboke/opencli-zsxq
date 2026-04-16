@@ -1,6 +1,6 @@
 # opencli-zsxq
 
-`opencli-zsxq` is an open-source OpenCLI plugin for Knowledge Planet (`zsxq.com`).
+`opencli-zsxq` is an open-source OpenCLI plugin for Knowledge Planet (`zsxq.com`) covering topic and comment operations, image and attachment extraction, and moderation workflows.
 
 For Chinese documentation, see [README.cn.md](./README.cn.md).
 
