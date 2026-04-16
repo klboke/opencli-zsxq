@@ -12,6 +12,26 @@ function normalizeMultilineText(value) {
   return String(value).replace(/\r\n/g, '\n');
 }
 
+export function normalizeTextPayload(kwargs, textKey = 'text', fileKey = 'file') {
+  const text = kwargs[textKey] != null ? normalizeMultilineText(kwargs[textKey]) : '';
+  const file = kwargs[fileKey] != null ? String(kwargs[fileKey]) : '';
+
+  if (text && file) {
+    throw new CommandExecutionError(`Use either --${textKey} or --${fileKey}, not both.`);
+  }
+
+  let payload = text;
+  if (file) {
+    payload = normalizeMultilineText(fs.readFileSync(file, 'utf8'));
+  }
+
+  if (!payload.trim()) {
+    throw new CommandExecutionError(`Content is empty. Provide --${textKey} or --${fileKey} with non-empty content.`);
+  }
+
+  return payload;
+}
+
 export function requireBrowserSession(page, action) {
   if (!page) {
     throw new CommandExecutionError(`Browser session required for zsxq ${action}`);
@@ -27,23 +47,7 @@ export function requireExecute(kwargs, action) {
 }
 
 export function resolveReplyPayload(kwargs) {
-  const text = kwargs.text != null ? normalizeMultilineText(kwargs.text) : '';
-  const file = kwargs.file != null ? String(kwargs.file) : '';
-
-  if (text && file) {
-    throw new CommandExecutionError('Use either --text or --file, not both.');
-  }
-
-  let payload = text;
-  if (file) {
-    payload = normalizeMultilineText(fs.readFileSync(file, 'utf8'));
-  }
-
-  if (!payload.trim()) {
-    throw new CommandExecutionError('Reply content is empty. Provide --text or --file with non-empty content.');
-  }
-
-  return payload;
+  return normalizeTextPayload(kwargs, 'text', 'file');
 }
 
 export function buildTopicUrl(topicId, groupId) {
@@ -52,6 +56,20 @@ export function buildTopicUrl(topicId, groupId) {
     return `${ZSXQ_WEB_ORIGIN}/group/${groupId}/topic/${topicId}`;
   }
   return `${ZSXQ_WEB_ORIGIN}/mweb/views/topicdetail/topicdetail.html?topic_id=${topicId}`;
+}
+
+export function buildGroupUrl(groupId) {
+  return groupId ? `${ZSXQ_WEB_ORIGIN}/group/${groupId}` : ZSXQ_WEB_ORIGIN;
+}
+
+export async function ensureZsxqPage(page, preferredUrl = ZSXQ_WEB_ORIGIN) {
+  requireBrowserSession(page, 'zsxq page');
+  try {
+    const currentUrl = typeof page.getCurrentUrl === 'function' ? await page.getCurrentUrl() : '';
+    return currentUrl || preferredUrl;
+  } catch {
+    return preferredUrl;
+  }
 }
 
 export async function resolveTopicReference(input) {
@@ -76,6 +94,67 @@ export async function resolveTopicReference(input) {
   }
 
   throw new CommandExecutionError(`Could not resolve a Knowledge Planet topic id from: ${raw}`);
+}
+
+export async function getCurrentTargetGroup(page) {
+  requireBrowserSession(page, 'group context');
+  await ensureZsxqPage(page);
+  const script = `
+    (() => {
+      try {
+        const raw = localStorage.getItem('target_group');
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    })()
+  `;
+  const group = await page.evaluate(script);
+  return group ?? null;
+}
+
+export async function readManagedGroups(page) {
+  await ensureZsxqPage(page);
+  const response = await zsxqApiRequest(page, {
+    url: `${ZSXQ_API_BASE}/users/self/groups/managed_groups`,
+    method: 'GET',
+  });
+
+  if (response.status === 401) {
+    throw new CommandExecutionError('Knowledge Planet session is not authenticated in Chrome.');
+  }
+
+  if (!response.payload?.succeeded) {
+    throw new CommandExecutionError(renderApiFailure('load managed groups', response));
+  }
+
+  return response.payload.resp_data?.groups ?? [];
+}
+
+export async function resolveGroupReference(page, input) {
+  const raw = input != null ? String(input).trim() : '';
+  if (raw) {
+    if (!/^\d+$/.test(raw)) {
+      throw new CommandExecutionError(`Invalid group id: ${raw}`);
+    }
+    return { groupId: raw, group: null };
+  }
+
+  const group = await getCurrentTargetGroup(page);
+  const groupId = group?.group_id ? String(group.group_id) : '';
+  if (!groupId) {
+    const managedGroups = await readManagedGroups(page);
+    const fallbackGroup = managedGroups[0] ?? null;
+    if (!fallbackGroup?.group_id) {
+      throw new CommandExecutionError('No active target group found. Pass --group <group_id> or open the target group in Knowledge Planet first.');
+    }
+    return {
+      groupId: String(fallbackGroup.group_id),
+      group: fallbackGroup,
+    };
+  }
+
+  return { groupId, group };
 }
 
 function parseTopicFromUrlLike(value) {
@@ -178,6 +257,191 @@ export async function createTopicReply(page, topicId, text) {
   return response.payload.resp_data?.comment ?? {};
 }
 
+export async function readGroupTopics(page, groupId, options = {}) {
+  const url = new URL(`${ZSXQ_API_BASE}/groups/${groupId}/topics`);
+  url.searchParams.set('scope', options.scope ?? 'all');
+  url.searchParams.set('count', String(options.count ?? 20));
+  if (options.beginTime) {
+    url.searchParams.set('begin_time', String(options.beginTime));
+  }
+  if (options.endTime) {
+    url.searchParams.set('end_time', String(options.endTime));
+  }
+
+  const response = await zsxqApiRequest(page, {
+    url: url.toString(),
+    method: 'GET',
+  });
+
+  if (response.status === 401) {
+    throw new CommandExecutionError('Knowledge Planet session is not authenticated in Chrome.');
+  }
+
+  if (!response.payload?.succeeded) {
+    throw new CommandExecutionError(renderApiFailure(`read topics for group ${groupId}`, response));
+  }
+
+  return response.payload.resp_data?.topics ?? [];
+}
+
+export async function readTopicComments(page, topicId, options = {}) {
+  const url = new URL(`${ZSXQ_API_BASE}/topics/${topicId}/comments`);
+  url.searchParams.set('sort', 'asc');
+  url.searchParams.set('count', String(options.count ?? 30));
+  url.searchParams.set('with_sticky', 'true');
+  if (options.beginTime) {
+    url.searchParams.set('begin_time', String(options.beginTime));
+  }
+
+  const response = await zsxqApiRequest(page, {
+    url: url.toString(),
+    method: 'GET',
+  });
+
+  if (response.status === 401) {
+    throw new CommandExecutionError('Knowledge Planet session is not authenticated in Chrome.');
+  }
+
+  if (!response.payload?.succeeded) {
+    throw new CommandExecutionError(renderApiFailure(`read comments for topic ${topicId}`, response));
+  }
+
+  const data = response.payload.resp_data ?? {};
+  return {
+    comments: data.comments ?? [],
+    stickyComments: data.sticky_comments ?? [],
+    index: data.index ?? '',
+  };
+}
+
+export async function createGroupTopic(page, groupId, text, options = {}) {
+  const payload = {
+    req_data: {
+      type: options.type ?? 'talk',
+      text,
+      image_ids: options.imageIds ?? [],
+      file_ids: options.fileIds ?? [],
+      mentioned_user_ids: options.mentionedUserIds ?? [],
+    },
+  };
+
+  const response = await zsxqApiRequest(page, {
+    url: `${ZSXQ_API_BASE}/groups/${groupId}/topics`,
+    method: 'POST',
+    body: payload,
+  });
+
+  if (response.status === 401) {
+    throw new CommandExecutionError('Knowledge Planet session is not authenticated in Chrome.');
+  }
+
+  if (!response.payload?.succeeded) {
+    throw new CommandExecutionError(renderApiFailure(`create topic in group ${groupId}`, response));
+  }
+
+  return response.payload.resp_data?.topic ?? {};
+}
+
+export async function setTopicField(page, topicId, field, value) {
+  const response = await zsxqApiRequest(page, {
+    url: `${ZSXQ_API_BASE}/topics/${topicId}`,
+    method: 'PUT',
+    body: {
+      req_data: {
+        [field]: value,
+      },
+    },
+  });
+
+  if (response.status === 401) {
+    throw new CommandExecutionError('Knowledge Planet session is not authenticated in Chrome.');
+  }
+
+  if (!response.payload?.succeeded) {
+    throw new CommandExecutionError(renderApiFailure(`update topic ${topicId}`, response));
+  }
+
+  return response.payload.resp_data?.topic ?? response.payload.resp_data ?? {};
+}
+
+export async function deleteTopicById(page, topicId) {
+  const response = await zsxqApiRequest(page, {
+    url: `${ZSXQ_API_BASE}/topics/${topicId}`,
+    method: 'DELETE',
+  });
+
+  if (response.status === 401) {
+    throw new CommandExecutionError('Knowledge Planet session is not authenticated in Chrome.');
+  }
+
+  if (!response.payload?.succeeded) {
+    throw new CommandExecutionError(renderApiFailure(`delete topic ${topicId}`, response));
+  }
+
+  return response.payload.resp_data ?? {};
+}
+
+export async function deleteCommentById(page, commentId, options = {}) {
+  const url = new URL(`${ZSXQ_API_BASE}/comments/${commentId}`);
+  if (options.reason) {
+    url.searchParams.set('reason', String(options.reason));
+  }
+  if (options.reason === 'custom' && options.description) {
+    url.searchParams.set('description', String(options.description));
+  }
+
+  const response = await zsxqApiRequest(page, {
+    url: url.toString(),
+    method: 'DELETE',
+  });
+
+  if (response.status === 401) {
+    throw new CommandExecutionError('Knowledge Planet session is not authenticated in Chrome.');
+  }
+
+  if (!response.payload?.succeeded) {
+    throw new CommandExecutionError(renderApiFailure(`delete comment ${commentId}`, response));
+  }
+
+  return response.payload.resp_data ?? {};
+}
+
+export function normalizeTopicRow(topic) {
+  const talk = topic?.talk ?? {};
+  const owner = talk.owner ?? {};
+  const group = topic?.group ?? {};
+  const topicId = topic?.topic_uid || topic?.topic_id || '';
+  const groupId = group?.group_id ? String(group.group_id) : '';
+
+  return {
+    topic_id: topicId,
+    group_id: groupId,
+    group_name: group?.name ?? '',
+    owner_name: owner?.name ?? '',
+    title: topic?.title ?? '',
+    text: talk?.text ?? '',
+    comments_count: topic?.comments_count ?? 0,
+    sticky: !!topic?.sticky,
+    digested: !!topic?.digested,
+    create_time: topic?.create_time ?? '',
+    topic_url: buildTopicUrl(topicId, groupId),
+  };
+}
+
+export function normalizeCommentRow(comment, topicId = '', groupId = '') {
+  const owner = comment?.owner ?? {};
+  return {
+    comment_id: comment?.comment_id ?? '',
+    topic_id: topicId,
+    owner_name: owner?.name ?? '',
+    text: comment?.text ?? '',
+    likes_count: comment?.likes_count ?? 0,
+    sticky: !!comment?.sticky,
+    create_time: comment?.create_time ?? '',
+    topic_url: topicId ? buildTopicUrl(topicId, groupId) : '',
+  };
+}
+
 export async function zsxqApiRequest(page, options) {
   requireBrowserSession(page, 'request');
   const script = `
@@ -194,7 +458,7 @@ export async function zsxqApiRequest(page, options) {
           .join('');
       };
 
-      const input = { url, method, body };
+      const input = { url: __zsxq_url, method: __zsxq_method, body: __zsxq_body };
       const urlValue = input.url;
       const methodValue = input.method || 'GET';
       const bodyValue = input.body ?? null;
@@ -244,29 +508,19 @@ export async function zsxqApiRequest(page, options) {
         };
       }
     })()
-  `;
-
-  if (typeof page.evaluateWithArgs === 'function') {
-    const result = await page.evaluateWithArgs(script, {
-      url: options.url,
-      method: options.method ?? 'GET',
-      body: options.body ?? null,
-    });
-    if (result?.error) {
-      throw new CommandExecutionError(`Knowledge Planet request failed: ${result.error}`);
-    }
-    return result;
-  }
-
+  `.trim();
   const fallbackScript = `
     (() => {
-      const url = ${JSON.stringify(options.url)};
-      const method = ${JSON.stringify(options.method ?? 'GET')};
-      const body = ${JSON.stringify(options.body ?? null)};
-      return ${script};
+      const __zsxq_url = ${JSON.stringify(options.url)};
+      const __zsxq_method = ${JSON.stringify(options.method ?? 'GET')};
+      const __zsxq_body = ${JSON.stringify(options.body ?? null)};
+      return (${script});
     })()
   `;
   const result = await page.evaluate(fallbackScript);
+  if (!result || typeof result !== 'object') {
+    throw new CommandExecutionError('Knowledge Planet request returned no response payload.');
+  }
   if (result?.error) {
     throw new CommandExecutionError(`Knowledge Planet request failed: ${result.error}`);
   }
