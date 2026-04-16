@@ -1,4 +1,4 @@
-import { cli, Strategy } from '@jackwener/opencli/registry';
+import { cli, Strategy } from './opencli-compat.js';
 
 import {
   buildTopicUrl,

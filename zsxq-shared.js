@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 
-import { CommandExecutionError } from '@jackwener/opencli/errors';
+import { CommandExecutionError } from './opencli-compat.js';
 
 export const ZSXQ_DOMAIN = 'wx.zsxq.com';
 export const ZSXQ_WEB_ORIGIN = 'https://wx.zsxq.com';

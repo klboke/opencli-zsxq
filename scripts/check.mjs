@@ -1,3 +1,4 @@
+await import('../opencli-compat.js');
 await import('../zsxq-shared.js');
 await import('../me.js');
 await import('../topic.js');
