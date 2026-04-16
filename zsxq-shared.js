@@ -7,6 +7,7 @@ export const ZSXQ_WEB_ORIGIN = 'https://wx.zsxq.com';
 export const ZSXQ_API_ORIGIN = 'https://api.zsxq.com';
 export const ZSXQ_API_BASE = `${ZSXQ_API_ORIGIN}/v2`;
 export const ZSXQ_API_VERSION = '2.90.0';
+export const ZSXQ_DEFAULT_GROUP_ID = '48844125114258';
 
 function normalizeMultilineText(value) {
   return String(value).replace(/\r\n/g, '\n');
@@ -142,19 +143,28 @@ export async function resolveGroupReference(page, input) {
 
   const group = await getCurrentTargetGroup(page);
   const groupId = group?.group_id ? String(group.group_id) : '';
-  if (!groupId) {
-    const managedGroups = await readManagedGroups(page);
-    const fallbackGroup = managedGroups[0] ?? null;
-    if (!fallbackGroup?.group_id) {
-      throw new CommandExecutionError('No active target group found. Pass --group <group_id> or open the target group in Knowledge Planet first.');
-    }
+  if (groupId) {
+    return { groupId, group };
+  }
+
+  const managedGroups = await readManagedGroups(page);
+  const defaultGroup = managedGroups.find((item) => String(item.group_id) === ZSXQ_DEFAULT_GROUP_ID) ?? null;
+  if (defaultGroup?.group_id) {
     return {
-      groupId: String(fallbackGroup.group_id),
-      group: fallbackGroup,
+      groupId: String(defaultGroup.group_id),
+      group: defaultGroup,
     };
   }
 
-  return { groupId, group };
+  const fallbackGroup = managedGroups[0] ?? null;
+  if (!fallbackGroup?.group_id) {
+    throw new CommandExecutionError(`No active target group found. Pass --group <group_id> or use the default group ${ZSXQ_DEFAULT_GROUP_ID}.`);
+  }
+
+  return {
+    groupId: String(fallbackGroup.group_id),
+    group: fallbackGroup,
+  };
 }
 
 function parseTopicFromUrlLike(value) {
@@ -314,6 +324,63 @@ export async function readTopicComments(page, topicId, options = {}) {
   };
 }
 
+export async function readAllTopicComments(page, topicId, options = {}) {
+  const pageSize = Number(options.count ?? 30);
+  const maxPages = Number(options.maxPages ?? 20);
+  const includeSticky = options.includeSticky !== false;
+
+  let beginTime = options.beginTime ? String(options.beginTime) : '';
+  let pageCount = 0;
+  let lastCursor = '';
+  const stickyComments = [];
+  const comments = [];
+  const seenCommentIds = new Set();
+
+  while (pageCount < maxPages) {
+    const result = await readTopicComments(page, topicId, {
+      count: pageSize,
+      beginTime,
+    });
+
+    if (includeSticky && stickyComments.length === 0) {
+      for (const comment of result.stickyComments) {
+        const commentId = String(comment?.comment_id ?? '');
+        if (!commentId || seenCommentIds.has(commentId)) continue;
+        seenCommentIds.add(commentId);
+        stickyComments.push(comment);
+      }
+    }
+
+    const batch = result.comments ?? [];
+    if (batch.length === 0) {
+      break;
+    }
+
+    let added = 0;
+    for (const comment of batch) {
+      const commentId = String(comment?.comment_id ?? '');
+      if (!commentId || seenCommentIds.has(commentId)) continue;
+      seenCommentIds.add(commentId);
+      comments.push(comment);
+      added += 1;
+    }
+
+    const nextCursor = batch[batch.length - 1]?.create_time ? String(batch[batch.length - 1].create_time) : '';
+    if (!nextCursor || nextCursor === beginTime || nextCursor === lastCursor || added === 0) {
+      break;
+    }
+
+    lastCursor = beginTime;
+    beginTime = nextCursor;
+    pageCount += 1;
+  }
+
+  return {
+    stickyComments,
+    comments,
+  };
+}
+
 export async function createGroupTopic(page, groupId, text, options = {}) {
   const payload = {
     req_data: {
@@ -439,6 +506,54 @@ export function normalizeCommentRow(comment, topicId = '', groupId = '') {
     sticky: !!comment?.sticky,
     create_time: comment?.create_time ?? '',
     topic_url: topicId ? buildTopicUrl(topicId, groupId) : '',
+  };
+}
+
+export function topicNeedsReply(topic, selfUserId, options = {}) {
+  const currentUserId = String(selfUserId ?? '');
+  const skipSelfTopics = options.includeSelfTopics ? false : true;
+  const talk = topic?.talk ?? {};
+  const owner = talk?.owner ?? {};
+  const ownerUserId = String(owner?.user_id ?? '');
+  const commentsCount = Number(topic?.comments_count ?? 0);
+
+  if (skipSelfTopics && currentUserId && ownerUserId === currentUserId) {
+    return { needsReply: false, reason: 'self_topic' };
+  }
+
+  if (commentsCount === 0) {
+    return {
+      needsReply: true,
+      reason: 'no_comments',
+      latestComment: null,
+    };
+  }
+
+  const latestComment = Array.isArray(topic?.show_comments) && topic.show_comments.length > 0
+    ? topic.show_comments[0]
+    : null;
+
+  if (!latestComment) {
+    return {
+      needsReply: true,
+      reason: 'comments_exist_but_preview_missing',
+      latestComment: null,
+    };
+  }
+
+  const latestCommentOwnerId = String(latestComment?.owner?.user_id ?? '');
+  if (!currentUserId || latestCommentOwnerId !== currentUserId) {
+    return {
+      needsReply: true,
+      reason: 'latest_comment_not_mine',
+      latestComment,
+    };
+  }
+
+  return {
+    needsReply: false,
+    reason: 'latest_comment_is_mine',
+    latestComment,
   };
 }
 

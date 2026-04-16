@@ -1,0 +1,275 @@
+# opencli-zsxq
+
+`opencli-zsxq` 是一个用于知识星球（`zsxq.com`）的私有 OpenCLI 插件。
+
+它会复用你当前 Chrome/Chromium 已登录的知识星球会话，通过 OpenCLI Browser Bridge 在浏览器上下文里完成签名请求和常见社区维护动作。
+
+## 当前支持的命令
+
+- `opencli zsxq me`
+- `opencli zsxq needs-reply [--group <id>] [--count N]`
+- `opencli zsxq group-list`
+- `opencli zsxq group-topics [--group <id>] [--scope all|digests] [--count N]`
+- `opencli zsxq topic <topic_id|url>`
+- `opencli zsxq comment-list <topic_id|url> [--count N] [--include-sticky]`
+- `opencli zsxq comment-dump <topic_id|url> [--count N] [--max-pages N]`
+- `opencli zsxq reply <topic_id|url> --text "..." --execute`
+- `opencli zsxq topic-create [--group <id>] --text "..." --execute`
+- `opencli zsxq topic-sticky <topic_id|url> on|off --execute`
+- `opencli zsxq topic-digest <topic_id|url> on|off --execute`
+- `opencli zsxq topic-delete <topic_id|url> --execute`
+- `opencli zsxq comment-delete <comment_id> --execute`
+
+## 前置条件
+
+- Node.js `>= 21`
+- Chrome/Chromium 已登录知识星球
+- 已安装并启用 OpenCLI Browser Bridge 扩展
+
+先检查 OpenCLI 和浏览器桥接是否可用：
+
+```bash
+opencli doctor
+```
+
+如果你没有全局安装 `opencli` 命令，需要改用：
+
+```bash
+npx -y -p @jackwener/opencli opencli doctor
+```
+
+注意：npm 上的包名是 `@jackwener/opencli`，不是 `opencli`。
+
+## 安装插件
+
+### 方式一：从本地目录安装
+
+```bash
+opencli plugin install /absolute/path/to/opencli-zsxq
+```
+
+如果你用的是 `npx`：
+
+```bash
+npx -y -p @jackwener/opencli opencli plugin install /absolute/path/to/opencli-zsxq
+```
+
+### 方式二：从 GitHub 安装
+
+```bash
+opencli plugin install github:klboke/opencli-zsxq
+```
+
+如果你用的是 `npx`：
+
+```bash
+npx -y -p @jackwener/opencli opencli plugin install github:klboke/opencli-zsxq
+```
+
+## 用法
+
+下面默认直接写 `opencli ...`。如果你没有全局安装，请统一替换成：
+
+```bash
+npx -y -p @jackwener/opencli opencli
+```
+
+本仓库当前固化的默认星球是 `48844125114258`，也就是 `KK开源社区`。
+
+凡是支持 `--group` 的命令，如果你没有显式传入群号，插件会按下面顺序解析：
+
+1. 浏览器本地的 `target_group`
+2. 默认星球 `48844125114258`
+3. `managed_groups` 返回列表里的第一个星球
+
+### 1. 查看当前登录账号
+
+```bash
+opencli zsxq me
+```
+
+### 2. 查看当前可管理的星球
+
+```bash
+opencli zsxq group-list
+```
+
+### 3. 查看“可能需要回复”的帖子
+
+```bash
+opencli zsxq needs-reply --count 20
+opencli zsxq needs-reply --group 48844125114258 --count 50
+```
+
+当前筛选规则是固定且显式的，命令会把符合下面任一条件的话题标出来：
+
+1. 话题作者不是当前登录账号
+2. 默认会跳过自己发的话题；如果要把自己发的话题也纳入筛选，可以加 `--include-self-topics`
+3. `comments_count = 0`
+4. 或者有评论，但 `show_comments[0]` 这条最新评论预览不是当前登录账号发的
+5. 或者明明有评论，但接口没有返回最新评论预览，这种情况也会保守地标出来
+
+当前 `reason` 字段含义：
+
+- `no_comments`
+- `latest_comment_not_mine`
+- `comments_exist_but_preview_missing`
+
+这个规则集是偏保守的，目标是先把疑似需要处理的话题筛出来，再由你人工判断。
+
+### 4. 查看星球帖子列表
+
+查看默认目标星球最近 10 条：
+
+```bash
+opencli zsxq group-topics --count 10
+```
+
+指定星球：
+
+```bash
+opencli zsxq group-topics --group 48844125114258 --count 10
+```
+
+只看精华帖：
+
+```bash
+opencli zsxq group-topics --group 48844125114258 --scope digests --count 10
+```
+
+带时间游标：
+
+```bash
+opencli zsxq group-topics --group 48844125114258 --count 20 --begin-time 2026-04-15T00:00:00.000+0800
+opencli zsxq group-topics --group 48844125114258 --count 20 --end-time 2026-04-15T23:59:59.000+0800
+```
+
+### 5. 查看单条帖子详情
+
+支持三种输入：
+
+- 纯 `topic_id`
+- `wx.zsxq.com` 完整链接
+- `t.zsxq.com` 短链接
+
+```bash
+opencli zsxq topic 14422522551548812
+opencli zsxq topic https://wx.zsxq.com/group/48844125114258/topic/14422522551548812
+opencli zsxq topic https://t.zsxq.com/7N1rp
+```
+
+### 6. 查看帖子评论
+
+```bash
+opencli zsxq comment-list https://t.zsxq.com/7N1rp --count 30
+opencli zsxq comment-list https://t.zsxq.com/7N1rp --count 30 --include-sticky
+```
+
+分页时可带 `begin-time`：
+
+```bash
+opencli zsxq comment-list https://t.zsxq.com/7N1rp --count 30 --begin-time 2026-04-16T00:00:00.000+0800
+```
+
+### 7. 拉取一个话题尽量完整的评论内容
+
+```bash
+opencli zsxq comment-dump https://t.zsxq.com/7N1rp
+opencli zsxq comment-dump https://t.zsxq.com/7N1rp --count 50 --max-pages 40
+```
+
+`comment-dump` 会循环走评论分页接口，尽量把一个话题下的评论内容拉全，适合后续归档、分析或离线处理。
+
+### 8. 回复帖子
+
+直接传文本：
+
+```bash
+opencli zsxq reply https://t.zsxq.com/7N1rp --text "收到，我看一下。" --execute
+```
+
+从文件读取回复内容：
+
+```bash
+opencli zsxq reply https://t.zsxq.com/7N1rp --file ./reply.md --execute
+```
+
+### 9. 创建帖子
+
+直接传文本：
+
+```bash
+opencli zsxq topic-create --group 48844125114258 --text "新公告" --execute
+```
+
+从文件读取：
+
+```bash
+opencli zsxq topic-create --file ./topic.md --execute
+```
+
+如果不传 `--group`，插件会先尝试浏览器里的 `target_group`，取不到时再回退到 `managed_groups` 里的第一个星球。
+现在这条规则已经更新为：先尝试 `target_group`，再回退到默认星球 `48844125114258`，最后才回退到 `managed_groups` 的第一个星球。
+
+### 10. 置顶/取消置顶
+
+```bash
+opencli zsxq topic-sticky https://t.zsxq.com/7N1rp on --execute
+opencli zsxq topic-sticky https://t.zsxq.com/7N1rp off --execute
+```
+
+### 11. 加精/取消精华
+
+```bash
+opencli zsxq topic-digest https://t.zsxq.com/7N1rp on --execute
+opencli zsxq topic-digest https://t.zsxq.com/7N1rp off --execute
+```
+
+### 12. 删除帖子
+
+```bash
+opencli zsxq topic-delete https://t.zsxq.com/7N1rp --execute
+```
+
+### 13. 删除评论
+
+直接删除：
+
+```bash
+opencli zsxq comment-delete 2852411842424181 --execute
+```
+
+带删除原因：
+
+```bash
+opencli zsxq comment-delete 2852411842424181 --reason spam --execute
+```
+
+自定义原因说明：
+
+```bash
+opencli zsxq comment-delete 2852411842424181 --reason custom --description "广告" --execute
+```
+
+## 安全约束
+
+以下命令都必须显式加 `--execute` 才会真正写入线上数据：
+
+- `reply`
+- `topic-create`
+- `topic-sticky`
+- `topic-digest`
+- `topic-delete`
+- `comment-delete`
+
+不带 `--execute` 时，命令会直接拒绝执行，避免误操作。
+
+## 说明
+
+- 所有请求都在浏览器已登录会话内完成签名，不会把知识星球密码存到插件里。
+- 当前实现基于 `wx.zsxq.com` 使用的签名 Web API。
+- 当前仓库固化的默认星球 ID 是 `48844125114258`。
+- 如果命令执行异常，优先检查：
+  - Chrome 是否仍处于登录状态
+  - Browser Bridge 扩展是否启用
+  - `opencli doctor` 是否正常

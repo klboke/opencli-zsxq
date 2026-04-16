@@ -1,7 +1,9 @@
 await import('../opencli-compat.js');
 await import('../zsxq-shared.js');
+await import('../comment-dump.js');
 await import('../group-list.js');
 await import('../group-topics.js');
+await import('../needs-reply.js');
 await import('../me.js');
 await import('../comment-list.js');
 await import('../comment-delete.js');
