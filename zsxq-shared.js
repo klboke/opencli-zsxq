@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import path from 'node:path';
 
 import { CommandExecutionError } from './opencli-compat.js';
 
@@ -506,6 +507,7 @@ export function normalizeTopicRow(topic) {
   const topicId = getTopicId(topic);
   const groupId = group?.group_id ? String(group.group_id) : '';
   const images = getTopicImages(topic);
+  const files = getTopicFiles(topic);
 
   return {
     topic_id: topicId,
@@ -516,6 +518,8 @@ export function normalizeTopicRow(topic) {
     text: getTopicText(topic),
     image_count: images.length,
     image_urls: serializeImageUrls(images),
+    file_count: files.length,
+    file_names: serializeFileNames(files),
     comments_count: topic?.comments_count ?? 0,
     sticky: !!topic?.sticky,
     digested: !!topic?.digested,
@@ -527,6 +531,7 @@ export function normalizeTopicRow(topic) {
 export function normalizeCommentRow(comment, topicId = '', groupId = '') {
   const owner = comment?.owner ?? {};
   const images = getCommentImages(comment);
+  const files = getCommentFiles(comment);
   return {
     comment_id: comment?.comment_id ?? '',
     topic_id: topicId,
@@ -534,6 +539,8 @@ export function normalizeCommentRow(comment, topicId = '', groupId = '') {
     text: comment?.text ?? '',
     image_count: images.length,
     image_urls: serializeImageUrls(images),
+    file_count: files.length,
+    file_names: serializeFileNames(files),
     likes_count: comment?.likes_count ?? 0,
     sticky: !!comment?.sticky,
     create_time: comment?.create_time ?? '',
@@ -675,6 +682,38 @@ export function getCommentImages(comment) {
   return normalizeImages(comment.images);
 }
 
+export function getTopicFiles(topic) {
+  if (!topic || typeof topic !== 'object') {
+    return [];
+  }
+
+  for (const entity of getPrimaryTopicEntities(topic)) {
+    const files = normalizeFiles(entity?.files);
+    if (files.length > 0) {
+      return files;
+    }
+  }
+
+  for (const value of Object.values(topic)) {
+    if (value && typeof value === 'object') {
+      const files = normalizeFiles(value.files);
+      if (files.length > 0) {
+        return files;
+      }
+    }
+  }
+
+  return [];
+}
+
+export function getCommentFiles(comment) {
+  if (!comment || typeof comment !== 'object') {
+    return [];
+  }
+
+  return normalizeFiles(comment.files);
+}
+
 export function serializeImageUrls(images, variant = 'original') {
   const records = normalizeImages(images);
   const urls = records
@@ -713,6 +752,38 @@ export function normalizeImageRows(images, options = {}) {
   }));
 }
 
+export function normalizeFileRows(files, options = {}) {
+  const {
+    topicId = '',
+    groupId = '',
+    sourceType = 'topic',
+    commentId = '',
+    ownerName = '',
+    createTime = '',
+    downloadUrlMap = new Map(),
+  } = options;
+
+  return normalizeFiles(files).map((file) => ({
+    source_type: sourceType,
+    topic_id: topicId,
+    comment_id: commentId,
+    owner_name: ownerName,
+    create_time: createTime,
+    file_id: file.file_id,
+    file_name: file.file_name,
+    file_hash: file.file_hash,
+    file_size: file.file_size,
+    download_count: file.download_count,
+    download_url: downloadUrlMap.get(file.file_id) ?? '',
+    topic_url: topicId ? buildTopicUrl(topicId, groupId) : '',
+  }));
+}
+
+export function serializeFileNames(files) {
+  const records = normalizeFiles(files);
+  return JSON.stringify(records.map((file) => file.file_name).filter(Boolean));
+}
+
 export function getTopicId(topic, fallback = '') {
   const topicUid = topic?.topic_uid;
   if (topicUid !== undefined && topicUid !== null && String(topicUid)) {
@@ -735,11 +806,110 @@ export function getTopicId(topic, fallback = '') {
   return '';
 }
 
+export async function readFileInfo(page, fileId) {
+  const response = await zsxqApiRequest(page, {
+    url: `${ZSXQ_API_BASE}/files/${fileId}`,
+    method: 'GET',
+  });
+
+  if (response.status === 401) {
+    throw new CommandExecutionError('Knowledge Planet session is not authenticated in Chrome.');
+  }
+
+  if (!response.payload?.succeeded) {
+    throw new CommandExecutionError(renderApiFailure(`read file ${fileId}`, response));
+  }
+
+  return response.payload.resp_data?.file ?? {};
+}
+
+export async function readFileDownloadUrl(page, fileId) {
+  const response = await zsxqApiRequest(page, {
+    url: `${ZSXQ_API_BASE}/files/${fileId}/download_url`,
+    method: 'GET',
+  });
+
+  if (response.status === 401) {
+    throw new CommandExecutionError('Knowledge Planet session is not authenticated in Chrome.');
+  }
+
+  if (!response.payload?.succeeded) {
+    throw new CommandExecutionError(renderApiFailure(`read file ${fileId} download url`, response));
+  }
+
+  return String(response.payload.resp_data?.download_url ?? '');
+}
+
+export async function downloadAttachmentToDir(page, fileId, outputDir, preferredName = '') {
+  const downloadUrl = await readFileDownloadUrl(page, fileId);
+  if (!downloadUrl) {
+    throw new CommandExecutionError(`Attachment ${fileId} returned no download url.`);
+  }
+
+  const info = await readFileInfo(page, fileId);
+  const rawName = preferredName || info?.name || `${fileId}.bin`;
+  const fileName = sanitizeFilename(rawName);
+
+  fs.mkdirSync(outputDir, { recursive: true });
+  const filePath = path.resolve(outputDir, fileName);
+
+  const response = await fetch(downloadUrl);
+  if (!response.ok) {
+    throw new CommandExecutionError(`Attachment download failed for ${fileId}. status=${response.status}`);
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  fs.writeFileSync(filePath, buffer);
+
+  return {
+    filePath,
+    downloadUrl,
+    info,
+    size: buffer.length,
+  };
+}
+
 function getPrimaryTopicEntities(topic) {
   const orderedKeys = getTopicEntityKeys(topic);
   return orderedKeys
     .map((key) => topic?.[key])
     .filter((value) => value && typeof value === 'object');
+}
+
+function normalizeFiles(files) {
+  if (!Array.isArray(files) || files.length === 0) {
+    return [];
+  }
+
+  return files
+    .map((file) => normalizeFileRecord(file))
+    .filter((file) => file && file.file_id);
+}
+
+function normalizeFileRecord(file) {
+  if (!file || typeof file !== 'object') {
+    return null;
+  }
+
+  if ('file_name' in file || 'file_hash' in file || 'file_size' in file) {
+    return {
+      file_id: file.file_id != null ? String(file.file_id) : '',
+      file_name: file.file_name ?? file.name ?? '',
+      file_hash: file.file_hash ?? file.hash ?? '',
+      file_size: Number(file.file_size ?? file.size ?? 0),
+      download_count: Number(file.download_count ?? 0),
+      create_time: file.create_time ?? '',
+    };
+  }
+
+  return {
+    file_id: file.file_id != null ? String(file.file_id) : '',
+    file_name: file.name ?? '',
+    file_hash: file.hash ?? '',
+    file_size: Number(file.size ?? 0),
+    download_count: Number(file.download_count ?? 0),
+    create_time: file.create_time ?? '',
+  };
 }
 
 function normalizeImages(images) {
@@ -774,6 +944,12 @@ function normalizeImageRecord(image) {
     large_url: image.large?.url ?? image.original?.url ?? '',
     original_url: image.original?.url ?? image.large?.url ?? image.thumbnail?.url ?? '',
   };
+}
+
+function sanitizeFilename(value) {
+  return String(value)
+    .replace(/[\/\\?%*:|"<>]/g, '_')
+    .trim() || 'attachment.bin';
 }
 
 function getTopicEntityKeys(topic) {

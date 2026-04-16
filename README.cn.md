@@ -12,8 +12,10 @@
 - `opencli zsxq group-topics [--group <id>] [--scope all|digests] [--count N]`
 - `opencli zsxq topic <topic_id|url>`
 - `opencli zsxq topic-images <topic_id|url>`
+- `opencli zsxq topic-files <topic_id|url>`
 - `opencli zsxq comment-list <topic_id|url> [--count N] [--include-sticky]`
 - `opencli zsxq comment-dump <topic_id|url> [--count N] [--max-pages N]`
+- `opencli zsxq file-download <file_id> [--output-dir dir]`
 - `opencli zsxq reply <topic_id|url> --text "..." --execute`
 - `opencli zsxq topic-create [--group <id>] --text "..." --execute`
 - `opencli zsxq topic-sticky <topic_id|url> on|off --execute`
@@ -185,11 +187,29 @@ opencli zsxq topic https://t.zsxq.com/7N1rp
 - `image_count`
 - `image_urls`
 
+如果帖子正文里带有附件，`topic` 输出里还会带：
+
+- `file_count`
+- `file_names`
+
 ### 5.1 查看帖子里的图片资源
 
 ```bash
 opencli zsxq topic-images https://t.zsxq.com/7N1rp
 opencli zsxq topic-images https://t.zsxq.com/7N1rp --include-comments false
+```
+
+### 5.2 查看帖子和评论里的附件
+
+```bash
+opencli zsxq topic-files https://t.zsxq.com/DMxje
+opencli zsxq topic-files https://t.zsxq.com/DMxje --include-comments false
+```
+
+按 `file_id` 下载附件到本地目录：
+
+```bash
+opencli zsxq file-download 212241125515121 --output-dir ./downloads
 ```
 
 ### 6. 查看帖子评论
@@ -203,6 +223,11 @@ opencli zsxq comment-list https://t.zsxq.com/7N1rp --count 30 --include-sticky
 
 - `image_count`
 - `image_urls`
+
+如果评论包含附件，还会返回：
+
+- `file_count`
+- `file_names`
 
 分页时可带 `begin-time`：
 

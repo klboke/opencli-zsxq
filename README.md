@@ -12,8 +12,10 @@ It reuses your existing Chrome login session through OpenCLI's Browser Bridge an
 - `opencli zsxq me`
 - `opencli zsxq topic <topic_id|url>`
 - `opencli zsxq topic-images <topic_id|url>`
+- `opencli zsxq topic-files <topic_id|url>`
 - `opencli zsxq comment-list <topic_id|url>`
 - `opencli zsxq comment-dump <topic_id|url>`
+- `opencli zsxq file-download <file_id> [--output-dir dir]`
 - `opencli zsxq reply <topic_id|url> --text "..." --execute`
 - `opencli zsxq topic-create [--group <id>] --text "..." --execute`
 - `opencli zsxq topic-sticky <topic_id|url> on|off --execute`
@@ -119,12 +121,26 @@ opencli zsxq topic https://t.zsxq.com/7N1rp
 ```
 
 The topic output now includes `image_count` and `image_urls` when the topic body contains screenshots or other inline images.
+It also includes `file_count` and `file_names` when the topic body contains attachments.
 
 List image assets from a topic:
 
 ```bash
 opencli zsxq topic-images https://t.zsxq.com/7N1rp
 opencli zsxq topic-images https://t.zsxq.com/7N1rp --include-comments false
+```
+
+List attachment assets from a topic:
+
+```bash
+opencli zsxq topic-files https://t.zsxq.com/DMxje
+opencli zsxq topic-files https://t.zsxq.com/DMxje --include-comments false
+```
+
+Download an attachment by `file_id`:
+
+```bash
+opencli zsxq file-download 212241125515121 --output-dir ./downloads
 ```
 
 List topic comments:
@@ -134,6 +150,7 @@ opencli zsxq comment-list https://t.zsxq.com/7N1rp --count 30 --include-sticky
 ```
 
 `comment-list` and `comment-dump` now also include `image_count` and `image_urls` for comment images when present.
+They also include `file_count` and `file_names` for comment attachments when present.
 
 Dump as many comments as possible for a topic:
 

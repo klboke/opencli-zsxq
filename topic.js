@@ -3,9 +3,11 @@ import { cli, Strategy } from './opencli-compat.js';
 import {
   buildTopicUrl,
   getTopicId,
+  getTopicFiles,
   getTopicImages,
   getTopicOwner,
   getTopicText,
+  serializeFileNames,
   serializeImageUrls,
   readTopicDetails,
   requireBrowserSession,
@@ -23,7 +25,7 @@ cli({
   args: [
     { name: 'target', positional: true, required: true, help: 'Topic id, wx.zsxq.com URL, or t.zsxq.com short link' },
   ],
-  columns: ['topic_id', 'group_id', 'group_name', 'owner_name', 'title', 'text', 'image_count', 'image_urls', 'comments_count', 'create_time', 'topic_url'],
+  columns: ['topic_id', 'group_id', 'group_name', 'owner_name', 'title', 'text', 'image_count', 'image_urls', 'file_count', 'file_names', 'comments_count', 'create_time', 'topic_url'],
   func: async (page, kwargs) => {
     requireBrowserSession(page, 'topic');
 
@@ -34,6 +36,7 @@ cli({
     const topicId = getTopicId(topic, target.topicId);
     const resolvedGroupId = target.groupId || group.group_id || topic.group?.group_id || '';
     const images = getTopicImages(topic);
+    const files = getTopicFiles(topic);
 
     return [{
       topic_id: topicId,
@@ -44,6 +47,8 @@ cli({
       text: getTopicText(topic),
       image_count: images.length,
       image_urls: serializeImageUrls(images),
+      file_count: files.length,
+      file_names: serializeFileNames(files),
       comments_count: topic.comments_count ?? 0,
       create_time: topic.create_time ?? '',
       topic_url: buildTopicUrl(topicId, resolvedGroupId),
