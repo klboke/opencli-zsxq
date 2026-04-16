@@ -141,6 +141,23 @@ export async function readManagedGroups(page) {
   return response.payload.resp_data?.groups ?? [];
 }
 
+export async function readGroupDetails(page, groupId) {
+  const response = await zsxqApiRequest(page, {
+    url: `${ZSXQ_API_BASE}/groups/${groupId}`,
+    method: 'GET',
+  });
+
+  if (response.status === 401) {
+    throw new CommandExecutionError('Knowledge Planet session is not authenticated in Chrome.');
+  }
+
+  if (!response.payload?.succeeded) {
+    throw new CommandExecutionError(renderApiFailure(`read group ${groupId}`, response));
+  }
+
+  return response.payload.resp_data?.group ?? {};
+}
+
 export async function resolveGroupReference(page, input) {
   const raw = input != null ? String(input).trim() : '';
   if (raw) {
@@ -524,6 +541,11 @@ export function topicNeedsReply(topic, selfUserId, options = {}) {
   const owner = getTopicOwner(topic) ?? {};
   const ownerUserId = String(owner?.user_id ?? '');
   const commentsCount = Number(topic?.comments_count ?? 0);
+  const staffUserIds = new Set(
+    Array.isArray(options.staffUserIds)
+      ? options.staffUserIds.map((item) => String(item ?? '')).filter(Boolean)
+      : [],
+  );
 
   if (skipSelfTopics && currentUserId && ownerUserId === currentUserId) {
     return { needsReply: false, reason: 'self_topic' };
@@ -538,7 +560,7 @@ export function topicNeedsReply(topic, selfUserId, options = {}) {
   }
 
   const latestComment = Array.isArray(topic?.show_comments) && topic.show_comments.length > 0
-    ? topic.show_comments[0]
+    ? topic.show_comments[topic.show_comments.length - 1]
     : null;
 
   if (!latestComment) {
@@ -550,6 +572,14 @@ export function topicNeedsReply(topic, selfUserId, options = {}) {
   }
 
   const latestCommentOwnerId = String(latestComment?.owner?.user_id ?? '');
+  if (latestCommentOwnerId && staffUserIds.has(latestCommentOwnerId)) {
+    return {
+      needsReply: false,
+      reason: 'latest_comment_by_staff',
+      latestComment,
+    };
+  }
+
   if (!currentUserId || latestCommentOwnerId !== currentUserId) {
     return {
       needsReply: true,

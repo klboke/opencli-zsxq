@@ -5,6 +5,7 @@ import {
   ensureZsxqSession,
   getTopicId,
   getTopicOwner,
+  readGroupDetails,
   readTopicDetails,
   readGroupTopics,
   requireBrowserSession,
@@ -31,6 +32,14 @@ cli({
 
     const self = await ensureZsxqSession(page);
     const { groupId } = await resolveGroupReference(page, kwargs.group);
+    const group = await readGroupDetails(page, groupId);
+    const staffUserIds = [
+      group?.owner?.user_id,
+      ...(Array.isArray(group?.admin_ids) ? group.admin_ids : []),
+      ...(Array.isArray(group?.partner_ids) ? group.partner_ids : []),
+    ]
+      .map((item) => String(item ?? ''))
+      .filter(Boolean);
     const topics = await readGroupTopics(page, groupId, {
       scope: 'all',
       count: kwargs.count,
@@ -41,6 +50,7 @@ cli({
       let topicForDecision = topic;
       let decision = topicNeedsReply(topicForDecision, self?.user_id, {
         includeSelfTopics: !!kwargs['include-self-topics'],
+        staffUserIds,
       });
 
       // Some list responses omit preview comments even when comments_count > 0.
@@ -50,6 +60,7 @@ cli({
         topicForDecision = details.topic ?? topicForDecision;
         decision = topicNeedsReply(topicForDecision, self?.user_id, {
           includeSelfTopics: !!kwargs['include-self-topics'],
+          staffUserIds,
         });
       }
 

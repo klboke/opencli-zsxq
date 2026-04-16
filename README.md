@@ -165,8 +165,16 @@ opencli zsxq comment-delete 2852411842424181 --reason custom --description "å¹¿å
 
 1. The topic is not authored by the current logged-in account, unless `--include-self-topics` is passed.
 2. Either `comments_count = 0`.
-3. Or comments exist, but the latest preview comment in `show_comments[0]` is not from the current logged-in account.
+3. Or comments exist, but the latest preview comment in `show_comments` is not from the current logged-in account.
 4. Or comments exist but the preview comment is missing, in which case it is conservatively flagged.
+
+The plugin also reads `groups/{group_id}` and treats the following identities as community staff:
+
+- group owner `owner`
+- admins from `admin_ids`
+- partners from `partner_ids`
+
+If the latest comment is from any of those staff users, the topic is treated as already followed up and is excluded from `needs-reply`.
 
 Current `reason` values:
 

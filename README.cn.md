@@ -108,8 +108,16 @@ opencli zsxq needs-reply --group 48844125114258 --count 50
 1. 话题作者不是当前登录账号
 2. 默认会跳过自己发的话题；如果要把自己发的话题也纳入筛选，可以加 `--include-self-topics`
 3. `comments_count = 0`
-4. 或者有评论，但 `show_comments[0]` 这条最新评论预览不是当前登录账号发的
+4. 或者有评论，但 `show_comments` 里的最后一条最新评论预览不是当前登录账号发的
 5. 或者明明有评论，但接口没有返回最新评论预览，这种情况也会保守地标出来
+
+另外，插件会额外读取群详情接口 `groups/{group_id}`。如果最新评论作者属于社区运营侧身份，也就是以下任一身份：
+
+- 群主 `owner`
+- 管理员 `admin_ids`
+- 合伙人 `partner_ids`
+
+则视为“社区已跟进”，不会再出现在 `needs-reply` 结果里。
 
 当前 `reason` 字段含义：
 
