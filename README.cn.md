@@ -11,6 +11,7 @@
 - `opencli zsxq group-list`
 - `opencli zsxq group-topics [--group <id>] [--scope all|digests] [--count N]`
 - `opencli zsxq topic <topic_id|url>`
+- `opencli zsxq topic-images <topic_id|url>`
 - `opencli zsxq comment-list <topic_id|url> [--count N] [--include-sticky]`
 - `opencli zsxq comment-dump <topic_id|url> [--count N] [--max-pages N]`
 - `opencli zsxq reply <topic_id|url> --text "..." --execute`
@@ -179,12 +180,29 @@ opencli zsxq topic https://wx.zsxq.com/group/48844125114258/topic/14422522551548
 opencli zsxq topic https://t.zsxq.com/7N1rp
 ```
 
+如果帖子正文里带有截图或其他内嵌图片，`topic` 输出里现在会带：
+
+- `image_count`
+- `image_urls`
+
+### 5.1 查看帖子里的图片资源
+
+```bash
+opencli zsxq topic-images https://t.zsxq.com/7N1rp
+opencli zsxq topic-images https://t.zsxq.com/7N1rp --include-comments false
+```
+
 ### 6. 查看帖子评论
 
 ```bash
 opencli zsxq comment-list https://t.zsxq.com/7N1rp --count 30
 opencli zsxq comment-list https://t.zsxq.com/7N1rp --count 30 --include-sticky
 ```
+
+`comment-list` 和 `comment-dump` 现在也会在评论包含图片时返回：
+
+- `image_count`
+- `image_urls`
 
 分页时可带 `begin-time`：
 

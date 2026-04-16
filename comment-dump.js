@@ -24,7 +24,7 @@ cli({
     { name: 'begin-time', help: 'Optional begin_time cursor to start from' },
     { name: 'include-sticky', type: 'boolean', help: 'Include sticky comments in the output' },
   ],
-  columns: ['comment_id', 'topic_id', 'owner_name', 'text', 'likes_count', 'sticky', 'create_time', 'topic_url'],
+  columns: ['comment_id', 'topic_id', 'owner_name', 'text', 'image_count', 'image_urls', 'likes_count', 'sticky', 'create_time', 'topic_url'],
   func: async (page, kwargs) => {
     requireBrowserSession(page, 'comment-dump');
 

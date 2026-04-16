@@ -505,6 +505,7 @@ export function normalizeTopicRow(topic) {
   const group = topic?.group ?? {};
   const topicId = getTopicId(topic);
   const groupId = group?.group_id ? String(group.group_id) : '';
+  const images = getTopicImages(topic);
 
   return {
     topic_id: topicId,
@@ -513,6 +514,8 @@ export function normalizeTopicRow(topic) {
     owner_name: owner?.name ?? '',
     title: topic?.title ?? '',
     text: getTopicText(topic),
+    image_count: images.length,
+    image_urls: serializeImageUrls(images),
     comments_count: topic?.comments_count ?? 0,
     sticky: !!topic?.sticky,
     digested: !!topic?.digested,
@@ -523,11 +526,14 @@ export function normalizeTopicRow(topic) {
 
 export function normalizeCommentRow(comment, topicId = '', groupId = '') {
   const owner = comment?.owner ?? {};
+  const images = getCommentImages(comment);
   return {
     comment_id: comment?.comment_id ?? '',
     topic_id: topicId,
     owner_name: owner?.name ?? '',
     text: comment?.text ?? '',
+    image_count: images.length,
+    image_urls: serializeImageUrls(images),
     likes_count: comment?.likes_count ?? 0,
     sticky: !!comment?.sticky,
     create_time: comment?.create_time ?? '',
@@ -637,6 +643,76 @@ export function getTopicText(topic) {
   return '';
 }
 
+export function getTopicImages(topic) {
+  if (!topic || typeof topic !== 'object') {
+    return [];
+  }
+
+  for (const entity of getPrimaryTopicEntities(topic)) {
+    const images = normalizeImages(entity?.images);
+    if (images.length > 0) {
+      return images;
+    }
+  }
+
+  for (const value of Object.values(topic)) {
+    if (value && typeof value === 'object') {
+      const images = normalizeImages(value.images);
+      if (images.length > 0) {
+        return images;
+      }
+    }
+  }
+
+  return [];
+}
+
+export function getCommentImages(comment) {
+  if (!comment || typeof comment !== 'object') {
+    return [];
+  }
+
+  return normalizeImages(comment.images);
+}
+
+export function serializeImageUrls(images, variant = 'original') {
+  const records = normalizeImages(images);
+  const urls = records
+    .map((image) => {
+      if (variant === 'thumbnail') return image.thumbnail_url;
+      if (variant === 'large') return image.large_url;
+      return image.original_url;
+    })
+    .filter(Boolean);
+
+  return JSON.stringify(urls);
+}
+
+export function normalizeImageRows(images, options = {}) {
+  const {
+    topicId = '',
+    groupId = '',
+    sourceType = 'topic',
+    commentId = '',
+    ownerName = '',
+    createTime = '',
+  } = options;
+
+  return normalizeImages(images).map((image) => ({
+    source_type: sourceType,
+    topic_id: topicId,
+    comment_id: commentId,
+    owner_name: ownerName,
+    create_time: createTime,
+    image_id: image.image_id,
+    image_type: image.image_type,
+    thumbnail_url: image.thumbnail_url,
+    large_url: image.large_url,
+    original_url: image.original_url,
+    topic_url: topicId ? buildTopicUrl(topicId, groupId) : '',
+  }));
+}
+
 export function getTopicId(topic, fallback = '') {
   const topicUid = topic?.topic_uid;
   if (topicUid !== undefined && topicUid !== null && String(topicUid)) {
@@ -664,6 +740,40 @@ function getPrimaryTopicEntities(topic) {
   return orderedKeys
     .map((key) => topic?.[key])
     .filter((value) => value && typeof value === 'object');
+}
+
+function normalizeImages(images) {
+  if (!Array.isArray(images) || images.length === 0) {
+    return [];
+  }
+
+  return images
+    .map((image) => normalizeImageRecord(image))
+    .filter((image) => image && (image.original_url || image.large_url || image.thumbnail_url));
+}
+
+function normalizeImageRecord(image) {
+  if (!image || typeof image !== 'object') {
+    return null;
+  }
+
+  if ('original_url' in image || 'large_url' in image || 'thumbnail_url' in image) {
+    return {
+      image_id: image.image_id != null ? String(image.image_id) : '',
+      image_type: image.image_type ?? image.type ?? '',
+      thumbnail_url: image.thumbnail_url ?? '',
+      large_url: image.large_url ?? image.original_url ?? '',
+      original_url: image.original_url ?? image.large_url ?? image.thumbnail_url ?? '',
+    };
+  }
+
+  return {
+    image_id: image.image_id != null ? String(image.image_id) : '',
+    image_type: image.type ?? '',
+    thumbnail_url: image.thumbnail?.url ?? '',
+    large_url: image.large?.url ?? image.original?.url ?? '',
+    original_url: image.original?.url ?? image.large?.url ?? image.thumbnail?.url ?? '',
+  };
 }
 
 function getTopicEntityKeys(topic) {

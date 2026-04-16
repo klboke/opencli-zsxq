@@ -11,6 +11,7 @@ It reuses your existing Chrome login session through OpenCLI's Browser Bridge an
 - `opencli zsxq group-topics [--group <id>]`
 - `opencli zsxq me`
 - `opencli zsxq topic <topic_id|url>`
+- `opencli zsxq topic-images <topic_id|url>`
 - `opencli zsxq comment-list <topic_id|url>`
 - `opencli zsxq comment-dump <topic_id|url>`
 - `opencli zsxq reply <topic_id|url> --text "..." --execute`
@@ -117,11 +118,22 @@ opencli zsxq topic https://wx.zsxq.com/group/48844125114258/topic/14422522551548
 opencli zsxq topic https://t.zsxq.com/7N1rp
 ```
 
+The topic output now includes `image_count` and `image_urls` when the topic body contains screenshots or other inline images.
+
+List image assets from a topic:
+
+```bash
+opencli zsxq topic-images https://t.zsxq.com/7N1rp
+opencli zsxq topic-images https://t.zsxq.com/7N1rp --include-comments false
+```
+
 List topic comments:
 
 ```bash
 opencli zsxq comment-list https://t.zsxq.com/7N1rp --count 30 --include-sticky
 ```
+
+`comment-list` and `comment-dump` now also include `image_count` and `image_urls` for comment images when present.
 
 Dump as many comments as possible for a topic:
 
