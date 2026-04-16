@@ -1,6 +1,6 @@
 ---
 name: zsxq-ops
-description: Operate Knowledge Planet community workflows through the local opencli-zsxq plugin. Use when Codex needs to triage candidate topics, inspect posts and full comment threads, draft or send replies, or run moderation actions for the KK开源社区 Knowledge Planet.
+description: Operate Knowledge Planet community workflows through the local opencli-zsxq plugin. Use when Codex needs to triage candidate topics, inspect posts and full comment threads, draft or send replies, or run moderation actions for a managed Knowledge Planet group.
 ---
 
 # ZSXQ Ops
@@ -20,7 +20,7 @@ Before using the plugin:
 1. Run `opencli doctor` to confirm Browser Bridge is connected.
 2. If the `zsxq` commands are unavailable, install the plugin from the local checkout:
    `/Users/kl/.paseo/worktrees/1t1obik0/opencli-zsxq`
-3. Default group is `48844125114258` (`KK开源社区`).
+3. If `--group` is omitted, the plugin uses browser `target_group` first, then falls back to the first managed group.
 
 For install and command examples, read [references/commands.md](references/commands.md).
 
@@ -28,7 +28,7 @@ For install and command examples, read [references/commands.md](references/comma
 
 For “哪些帖子需要跟进” style requests:
 
-1. Run `opencli zsxq needs-reply --group 48844125114258 --count <N>`.
+1. Run `opencli zsxq needs-reply --group <group_id> --count <N>`.
 2. Treat the result as a candidate list, not a final decision.
 3. For each candidate worth checking, read:
    `opencli zsxq topic <topic>`
@@ -87,4 +87,3 @@ When you complete a community action, include:
 - what you posted or changed
 - resulting `comment_id` or `topic_id` for write actions
 - any remaining ambiguity
-

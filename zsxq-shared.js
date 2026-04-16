@@ -8,7 +8,6 @@ export const ZSXQ_WEB_ORIGIN = 'https://wx.zsxq.com';
 export const ZSXQ_API_ORIGIN = 'https://api.zsxq.com';
 export const ZSXQ_API_BASE = `${ZSXQ_API_ORIGIN}/v2`;
 export const ZSXQ_API_VERSION = '2.90.0';
-export const ZSXQ_DEFAULT_GROUP_ID = '48844125114258';
 export const ZSXQ_MAX_COMMENT_PAGE_SIZE = 30;
 
 function normalizeMultilineText(value) {
@@ -191,17 +190,9 @@ export async function resolveGroupReference(page, input) {
   }
 
   const managedGroups = await readManagedGroups(page);
-  const defaultGroup = managedGroups.find((item) => String(item.group_id) === ZSXQ_DEFAULT_GROUP_ID) ?? null;
-  if (defaultGroup?.group_id) {
-    return {
-      groupId: String(defaultGroup.group_id),
-      group: defaultGroup,
-    };
-  }
-
   const fallbackGroup = managedGroups[0] ?? null;
   if (!fallbackGroup?.group_id) {
-    throw new CommandExecutionError(`No active target group found. Pass --group <group_id> or use the default group ${ZSXQ_DEFAULT_GROUP_ID}.`);
+    throw new CommandExecutionError('No active target group found. Pass --group <group_id> or select a managed group in the browser first.');
   }
 
   return {

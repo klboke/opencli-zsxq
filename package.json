@@ -1,10 +1,9 @@
 {
   "name": "opencli-plugin-zsxq",
   "version": "0.1.0",
-  "description": "OpenCLI plugin for Zsxq (Knowledge Planet) topic reading and replying",
+  "description": "OpenCLI plugin for Zsxq (Knowledge Planet) community operations",
   "type": "module",
-  "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
   "engines": {
     "node": ">=21.0.0"
   },

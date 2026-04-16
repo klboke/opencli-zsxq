@@ -19,25 +19,25 @@ npx -y -p @jackwener/opencli opencli plugin install /Users/kl/.paseo/worktrees/1
 ```bash
 opencli zsxq me
 opencli zsxq group-list
-opencli zsxq group-topics --group 48844125114258 --count 10
-opencli zsxq needs-reply --group 48844125114258 --count 20
-opencli zsxq topic https://t.zsxq.com/7N1rp
-opencli zsxq topic-images https://t.zsxq.com/7N1rp
-opencli zsxq topic-files https://t.zsxq.com/DMxje
-opencli zsxq comment-list https://t.zsxq.com/7N1rp --count 30 --include-sticky
-opencli zsxq comment-dump https://t.zsxq.com/7N1rp --count 30 --max-pages 20
-opencli zsxq file-download 212241125515121 --output-dir ./downloads
+opencli zsxq group-topics --group <group_id> --count 10
+opencli zsxq needs-reply --group <group_id> --count 20
+opencli zsxq topic https://t.zsxq.com/<short_code>
+opencli zsxq topic-images https://t.zsxq.com/<short_code>
+opencli zsxq topic-files https://t.zsxq.com/<short_code>
+opencli zsxq comment-list https://t.zsxq.com/<short_code> --count 30 --include-sticky
+opencli zsxq comment-dump https://t.zsxq.com/<short_code> --count 30 --max-pages 20
+opencli zsxq file-download <file_id> --output-dir ./downloads
 ```
 
 ## Write Commands
 
 ```bash
-opencli zsxq reply https://t.zsxq.com/7N1rp --text "收到，我看一下。" --execute
-opencli zsxq topic-create --group 48844125114258 --text "新公告" --execute
-opencli zsxq topic-sticky https://t.zsxq.com/7N1rp on --execute
-opencli zsxq topic-digest https://t.zsxq.com/7N1rp on --execute
-opencli zsxq topic-delete https://t.zsxq.com/7N1rp --execute
-opencli zsxq comment-delete 2852411842424181 --execute
+opencli zsxq reply https://t.zsxq.com/<short_code> --text "收到，我看一下。" --execute
+opencli zsxq topic-create --group <group_id> --text "New topic" --execute
+opencli zsxq topic-sticky https://t.zsxq.com/<short_code> on --execute
+opencli zsxq topic-digest https://t.zsxq.com/<short_code> on --execute
+opencli zsxq topic-delete https://t.zsxq.com/<short_code> --execute
+opencli zsxq comment-delete <comment_id> --execute
 ```
 
 ## Interpretation Notes
@@ -47,4 +47,4 @@ opencli zsxq comment-delete 2852411842424181 --execute
 - Use `topic-files` and `file-download` when the user asks for attached documents or wants them saved locally.
 - `needs-reply` is a candidate generator, not a semantic answerer.
 - Topic links can be full `wx.zsxq.com` URLs, `t.zsxq.com` short links, or raw topic IDs.
-- Default group is `48844125114258`.
+- Omit `--group` when browser `target_group` already points at the group you want.

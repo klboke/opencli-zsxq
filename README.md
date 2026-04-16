@@ -1,8 +1,10 @@
 # opencli-zsxq
 
-`opencli-zsxq` is a private OpenCLI plugin for Knowledge Planet (`zsxq.com`).
+`opencli-zsxq` is an open-source OpenCLI plugin for Knowledge Planet (`zsxq.com`).
 
 For Chinese documentation, see [README.cn.md](./README.cn.md).
+
+License: [MIT](./LICENSE)
 
 It reuses your existing Chrome login session through OpenCLI's Browser Bridge and currently provides:
 
@@ -77,12 +79,10 @@ Examples below use `opencli ...` directly. If you do not have it installed globa
 npx -y -p @jackwener/opencli opencli
 ```
 
-Default group id in this repository is `48844125114258` (`KK开源社区`).
 When a command supports `--group` and you omit it, the plugin resolves group id in this order:
 
 1. Browser `target_group`
-2. Default group `48844125114258`
-3. First result from `managed_groups`
+2. First result from `managed_groups`
 
 Check the current logged-in browser account:
 
@@ -100,7 +100,7 @@ List recent topics that likely need a reply:
 
 ```bash
 opencli zsxq needs-reply --count 20
-opencli zsxq needs-reply --group 48844125114258 --count 50
+opencli zsxq needs-reply --group <group_id> --count 50
 ```
 
 The output now includes topic publish time in `create_time` so you can triage candidates by age.
@@ -109,15 +109,15 @@ List latest topics from the current managed group, or an explicit group id:
 
 ```bash
 opencli zsxq group-topics --count 10
-opencli zsxq group-topics --group 48844125114258 --scope digests --count 20
+opencli zsxq group-topics --group <group_id> --scope digests --count 20
 ```
 
 Read a topic by id or URL:
 
 ```bash
-opencli zsxq topic 14422522551548812
-opencli zsxq topic https://wx.zsxq.com/group/48844125114258/topic/14422522551548812
-opencli zsxq topic https://t.zsxq.com/7N1rp
+opencli zsxq topic <topic_id>
+opencli zsxq topic https://wx.zsxq.com/group/<group_id>/topic/<topic_id>
+opencli zsxq topic https://t.zsxq.com/<short_code>
 ```
 
 The topic output now includes `image_count` and `image_urls` when the topic body contains screenshots or other inline images.
@@ -126,27 +126,27 @@ It also includes `file_count` and `file_names` when the topic body contains atta
 List image assets from a topic:
 
 ```bash
-opencli zsxq topic-images https://t.zsxq.com/7N1rp
-opencli zsxq topic-images https://t.zsxq.com/7N1rp --include-comments false
+opencli zsxq topic-images https://t.zsxq.com/<short_code>
+opencli zsxq topic-images https://t.zsxq.com/<short_code> --include-comments false
 ```
 
 List attachment assets from a topic:
 
 ```bash
-opencli zsxq topic-files https://t.zsxq.com/DMxje
-opencli zsxq topic-files https://t.zsxq.com/DMxje --include-comments false
+opencli zsxq topic-files https://t.zsxq.com/<short_code>
+opencli zsxq topic-files https://t.zsxq.com/<short_code> --include-comments false
 ```
 
 Download an attachment by `file_id`:
 
 ```bash
-opencli zsxq file-download 212241125515121 --output-dir ./downloads
+opencli zsxq file-download <file_id> --output-dir ./downloads
 ```
 
 List topic comments:
 
 ```bash
-opencli zsxq comment-list https://t.zsxq.com/7N1rp --count 30 --include-sticky
+opencli zsxq comment-list https://t.zsxq.com/<short_code> --count 30 --include-sticky
 ```
 
 `comment-list` and `comment-dump` now also include `image_count` and `image_urls` for comment images when present.
@@ -155,8 +155,8 @@ They also include `file_count` and `file_names` for comment attachments when pre
 Dump as many comments as possible for a topic:
 
 ```bash
-opencli zsxq comment-dump https://t.zsxq.com/7N1rp
-opencli zsxq comment-dump https://t.zsxq.com/7N1rp --count 50 --max-pages 40
+opencli zsxq comment-dump https://t.zsxq.com/<short_code>
+opencli zsxq comment-dump https://t.zsxq.com/<short_code> --count 50 --max-pages 40
 ```
 
 Note: the current Knowledge Planet comments API only accepts page sizes up to `30`.
@@ -166,7 +166,7 @@ Reply to a topic:
 
 ```bash
 opencli zsxq reply 14422522551548812 --text "收到，我看一下。" --execute
-opencli zsxq reply https://t.zsxq.com/7N1rp --file ./reply.md --execute
+opencli zsxq reply https://t.zsxq.com/<short_code> --file ./reply.md --execute
 ```
 
 For automation calls, `--text` now treats literal `\n` / `\r\n` escape sequences as real line breaks when no real newline is present yet.
@@ -174,18 +174,18 @@ For automation calls, `--text` now treats literal `\n` / `\r\n` escape sequences
 Create a topic:
 
 ```bash
-opencli zsxq topic-create --group 48844125114258 --text "新公告" --execute
+opencli zsxq topic-create --group <group_id> --text "New topic" --execute
 opencli zsxq topic-create --file ./topic.md --execute
 ```
 
 Moderation and curation actions:
 
 ```bash
-opencli zsxq topic-sticky https://t.zsxq.com/7N1rp on --execute
-opencli zsxq topic-digest 14422522551548812 on --execute
-opencli zsxq topic-delete 14422522551548812 --execute
-opencli zsxq comment-delete 2852411842424181 --execute
-opencli zsxq comment-delete 2852411842424181 --reason custom --description "广告" --execute
+opencli zsxq topic-sticky https://t.zsxq.com/<short_code> on --execute
+opencli zsxq topic-digest <topic_id> on --execute
+opencli zsxq topic-delete <topic_id> --execute
+opencli zsxq comment-delete <comment_id> --execute
+opencli zsxq comment-delete <comment_id> --reason custom --description "spam" --execute
 ```
 
 `reply`, `topic-create`, `topic-sticky`, `topic-digest`, `topic-delete`, and `comment-delete` require `--execute` by design so dry runs do not accidentally mutate community data.
@@ -195,7 +195,7 @@ opencli zsxq comment-delete 2852411842424181 --reason custom --description "广�
 - Requests are signed inside the live browser session.
 - Credentials stay in the browser; this plugin does not store Knowledge Planet passwords.
 - The current implementation targets the signed web API used by `wx.zsxq.com`.
-- When `--group` is omitted, the plugin first tries browser `target_group`, then falls back to default group `48844125114258`, then the first group returned by `managed_groups`.
+- When `--group` is omitted, the plugin first tries browser `target_group`, then falls back to the first group returned by `managed_groups`.
 
 ## Current Needs-Reply Rules
 

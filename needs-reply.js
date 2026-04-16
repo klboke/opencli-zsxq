@@ -23,7 +23,7 @@ cli({
   strategy: Strategy.HEADER,
   browser: true,
   args: [
-    { name: 'group', help: 'Group id. Defaults to target_group, then 48844125114258, then first managed group.' },
+    { name: 'group', help: 'Group id. Defaults to target_group, then the first managed group.' },
     { name: 'count', type: 'int', default: 20, help: 'Number of recent topics to inspect' },
     { name: 'include-self-topics', type: 'boolean', help: 'Include topics created by the current logged-in account' },
   ],
