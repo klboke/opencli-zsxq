@@ -170,6 +170,7 @@ opencli zsxq reply https://t.zsxq.com/<short_code> --file ./reply.md --execute
 ```
 
 For automation calls, `--text` now treats literal `\n` / `\r\n` escape sequences as real line breaks when no real newline is present yet.
+If the browser bridge reports an uncertain post-send error, `reply` now performs a read-back check before failing; when the comment is found, status is returned as `posted_reconciled`.
 
 Create a topic:
 

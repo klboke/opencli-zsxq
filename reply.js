@@ -3,6 +3,8 @@ import { cli, Strategy } from './opencli-compat.js';
 import {
   buildTopicUrl,
   createTopicReply,
+  ensureZsxqSession,
+  readAllTopicComments,
   readTopicDetails,
   renderApiFailure,
   requireBrowserSession,
@@ -32,18 +34,36 @@ cli({
 
     const payload = resolveReplyPayload(kwargs);
     const target = await resolveTopicReference(kwargs.target);
-    const comment = await createTopicReply(page, target.topicId, payload);
-    if (!comment.comment_id) {
-      throw new Error(renderApiFailure(`reply to topic ${target.topicId}`, { payload: { succeeded: false }, status: 200 }));
-    }
-
+    const self = await ensureZsxqSession(page);
     const details = await readTopicDetails(page, target.topicId);
     const group = details.group ?? {};
     const resolvedGroupId = target.groupId || group.group_id || details.topic?.group?.group_id || '';
+    const baselineCommentsCount = Number(details.topic?.comments_count ?? 0);
+
+    let comment;
+    let reconciled = false;
+    try {
+      comment = await createTopicReply(page, target.topicId, payload);
+    } catch (error) {
+      comment = await reconcilePostedReply(page, {
+        topicId: target.topicId,
+        baselineCommentsCount,
+        selfUserId: self?.user_id,
+        expectedText: payload,
+      });
+      if (!comment) {
+        throw error;
+      }
+      reconciled = true;
+    }
+
+    if (!comment.comment_id) {
+      throw new Error(renderApiFailure(`reply to topic ${target.topicId}`, { payload: { succeeded: false }, status: 200 }));
+    }
     const owner = comment.owner ?? {};
 
     return [{
-      status: 'posted',
+      status: reconciled ? 'posted_reconciled' : 'posted',
       comment_id: comment.comment_id ?? '',
       topic_id: target.topicId,
       group_id: resolvedGroupId,
@@ -54,3 +74,42 @@ cli({
     }];
   },
 });
+
+async function reconcilePostedReply(page, { topicId, baselineCommentsCount, selfUserId, expectedText }) {
+  try {
+    const details = await readTopicDetails(page, topicId);
+    const currentCommentsCount = Number(details.topic?.comments_count ?? 0);
+    if (currentCommentsCount <= baselineCommentsCount) {
+      return null;
+    }
+
+    const result = await readAllTopicComments(page, topicId, {
+      count: 30,
+      maxPages: Math.max(1, Math.ceil(currentCommentsCount / 30)),
+      includeSticky: false,
+    });
+
+    const comments = result.comments ?? [];
+    const candidates = comments.slice(Math.max(0, baselineCommentsCount));
+    const expected = normalizeComparableText(expectedText);
+    const selfId = String(selfUserId ?? '');
+
+    for (let index = candidates.length - 1; index >= 0; index -= 1) {
+      const comment = candidates[index];
+      if (selfId && String(comment?.owner?.user_id ?? '') !== selfId) {
+        continue;
+      }
+      if (normalizeComparableText(comment?.text ?? '') === expected) {
+        return comment;
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function normalizeComparableText(value) {
+  return String(value).replace(/\r\n/g, '\n').trim();
+}
